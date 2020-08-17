@@ -9,7 +9,6 @@ import (
     "sync"
     "fmt"
     "time"
-    "strconv"
 )
 
 /*
@@ -22,28 +21,27 @@ import (
 func main() {
     var wg sync.WaitGroup
 
+    timeout := 500 * time.Millisecond
+
     target := os.Args[1]
 
     starttime := time.Now().UnixNano()
 
     for port := 1; port < 65536; port++ {
-//        fmt.Fprintf(os.Stdout, "Portscanner %s %d\n", target, port)
-
-        tcpAddr, err := net.ResolveTCPAddr("tcp4", target + ":" + strconv.Itoa(port))
-        checkError(err)
+	where := fmt.Sprintf("%s:%d", target, port)
 
 	wg.Add(1)
-	go func(port int) {
+	go func(ww string) {
                 defer wg.Done()
-        	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+		conn, err := net.DialTimeout("tcp", ww, timeout)
 		if err == nil {
-	        	fmt.Fprintf(os.Stdout, "OPEN %s %d\n", target, port)
+	        	fmt.Fprintf(os.Stdout, "OPEN %s\n", where)
 
 			conn.Close();
 		} else {
 //	        	fmt.Fprintf(os.Stdout, "ERROR %s\n", err.Error())			
 		}
-	}(port)
+	}(where)
     }
 
     fmt.Println("Waiting for everything to finish...")
@@ -56,9 +54,3 @@ func main() {
     os.Exit(0)
 }
 
-func checkError(err error) {
-    if err != nil {
-        fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
-        os.Exit(1)
-    }
-}

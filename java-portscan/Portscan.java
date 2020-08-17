@@ -13,10 +13,9 @@ public class Portscan {
 		long starttime = System.currentTimeMillis();
 
 		Selector selector = Selector.open();
-
+		
 		// Now put in everything we want to try to connect to...
 		for(int port=1;port<65536;port++) {
-//			System.out.println("Scanning " + target + " " + port);
 			InetSocketAddress isa = new InetSocketAddress(target, port);
 			addConnection(selector, isa);
 		}
@@ -25,47 +24,48 @@ public class Portscan {
 		int done = 0;
 
 		// Wait for all of them to complete...
+		long now = System.currentTimeMillis();
+		
 		while(true) {
-			int n = selector.select();			// No timeout, just wait...
+			long timeLeft = 500 - (System.currentTimeMillis() - now);
+			if (timeLeft <= 0) break;
 
-			LinkedList<SelectionKey> removes = new LinkedList();
+			int n = selector.select(timeLeft);	// No timeout, just wait...
+
 			Set t = selector.selectedKeys();
 			Iterator i = t.iterator();
 			while(i.hasNext()) {
 				SelectionKey selk = (SelectionKey) i.next();
-		                SocketChannel ssc = (SocketChannel) selk.channel();
+                SocketChannel ssc = (SocketChannel) selk.channel();
 				i.remove();
-				// Do it...
+
 				if (selk.isValid()) {
 					if (selk.isConnectable()) {
 						try {
 							ssc.finishConnect();
 							System.out.println("OPEN " + ssc);
-						} catch(Exception e) {
-							//
-						}
+						} catch(Exception e) {}
 						done++;
 					}
 				}
-
 				selk.cancel();
             }
 
-//			System.out.println("Waiting " + selector.keys().size() + " " + done + "/" + total);
 			if (done==total) break;
 		}
 
 		long endtime = System.currentTimeMillis();
 		System.out.println("Took " + (endtime - starttime) + "ms");
-		// Now check what succeeded
 	}
 	
 	public static void addConnection(Selector selector, InetSocketAddress target) throws Exception {
 		SocketChannel sc = SocketChannel.open();
 		sc.configureBlocking(false);
+		sc.socket().setSoTimeout(500);
 		SelectionKey sk = sc.register(selector, SelectionKey.OP_CONNECT);
 		if (sc.connect(target)) {
 			System.out.println("OPEN " + sc);
+			sk.cancel();
 		}
 	}
 }
